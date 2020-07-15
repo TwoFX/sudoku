@@ -31,12 +31,23 @@ namespace tactic.sudoku
 meta def get_sudoku : tactic expr :=
 local_context >>= list.mfirst' (λ t, (do `(sudoku) ← infer_type t, return tt) <|> return ff)
 
-def indices : list (fin 9) := [0, 1, 2, 3, 4, 5, 6, 7, 8]
-def numbers : list (fin 9) := [1, 2, 3, 4, 5, 6, 7, 8, 9]
-
 meta structure cell_data :=
 (row col val : fin 9)
 (e : expr)
+
+meta structure outer_pencil_data :=
+(row₀ col₀ row₁ col₁ val : fin 9)
+(e : expr)
+
+meta structure inner_pencil_data :=
+(row col : fin 9)
+(vals : list (fin 9))
+(e : expr)
+
+meta structure board_info :=
+(cd : list cell_data)
+(op : list outer_pencil_data)
+(ip : list inner_pencil_data)
 
 meta instance format_cell_data : has_to_format cell_data :=
 { to_format := λ d,
@@ -50,8 +61,47 @@ meta def parse_cell_data (s e : expr) : tactic (option cell_data) :=
   w ← eval_expr (fin 9) c,
   return $ some ⟨u, v, w, e⟩) <|> return none
 
+meta def parse_outer_pencil_data (s e : expr) : tactic (option outer_pencil_data) :=
+(do
+  `(sudoku.outer_pencil_mark %%s %%r₀ %%c₀ %%r₁ %%c₁ %%v) ← infer_type e,
+  [pr₀, pc₀, pr₁, pc₁, pv] ← list.mmap (eval_expr (fin 9)) [r₀, c₀, r₁, c₁, v],
+  return $ some ⟨pr₀, pc₀, pr₁, pc₁, pv, e⟩) <|> return none
+
+meta def parse_inner_pencil_data₂ (s e : expr) : tactic (option inner_pencil_data) :=
+(do
+  `(sudoku.inner_pencil_mark₂ %%s %%r %%c %%v₁ %%v₂) ← infer_type e,
+  [pr, pc, pv₁, pv₂] ← list.mmap (eval_expr (fin 9)) [r, c, v₁, v₂],
+  return $ some ⟨pr, pc, [pv₁, pv₂], e⟩) <|> return none
+
+meta def parse_inner_pencil_data₃ (s e : expr) : tactic (option inner_pencil_data) :=
+(do
+  `(sudoku.inner_pencil_mark₃ %%s %%r %%c %%v₁ %%v₂ %%v₃) ← infer_type e,
+  [pr, pc, pv₁, pv₂, pv₃] ← list.mmap (eval_expr (fin 9)) [r, c, v₁, v₂, v₃],
+  return $ some ⟨pr, pc, [pv₁, pv₂, pv₃], e⟩) <|> return none
+
+meta def parse_inner_pencil_data (s e : expr) : tactic (option inner_pencil_data) :=
+do
+  t ← parse_inner_pencil_data₂ s e,
+  match t with
+  | some d := return $ some d
+  | none := parse_inner_pencil_data₃ s e
+  end
+
 meta def get_cell_data (s : expr) : tactic (list cell_data) :=
 local_context >>= list.mfiltermap (parse_cell_data s)
+
+meta def get_outer_pencil_data (s : expr) : tactic (list outer_pencil_data) :=
+local_context >>= list.mfiltermap (parse_outer_pencil_data s)
+
+meta def get_inner_pencil_data (s : expr) : tactic (list inner_pencil_data) :=
+local_context >>= list.mfiltermap (parse_inner_pencil_data s)
+
+meta def get_board_info (s : expr) : tactic board_info :=
+do
+  cd ← get_cell_data s,
+  op ← get_outer_pencil_data s,
+  ip ← get_inner_pencil_data s,
+  return ⟨cd, op, ip⟩
 
 meta def mk_row_conflict (s : expr) (l r : cell_data) : tactic unit :=
 do
