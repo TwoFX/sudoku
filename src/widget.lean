@@ -3,10 +3,40 @@ import init.meta.widget.tactic_component
 section tac
 open tactic widget
 
+meta def list.iota' : ℕ → list ℕ :=
+list.map (λ n, n - 1) ∘ list.reverse ∘ list.iota
+
+meta def mk_table_entry (n m : ℕ) : tactic (html empty) :=
+do
+  let attrs : list (attr empty) := [cn "bw2"],
+  let attrs := if n % 3 = 0 then attrs ++ [cn "bt"] else attrs,
+  let attrs := if m % 3 = 0 then attrs ++ [cn "bl"] else attrs,
+  let attrs := if n % 3 = 2 then attrs ++ [cn "bb"] else attrs,
+  let attrs := if m % 3 = 2 then attrs ++ [cn "br"] else attrs,
+  let s := if n ≤ 8 ∧ m ≤ 8 then "7" else "",
+  return $ h "td" attrs [
+    h "div" [cn "dt", cn "ba", cn "b--light-silver", cn "w3", cn "h3"] [
+      h "p" [cn "dtc", cn "v-mid", cn "tc", cn "f2"] s
+    ]
+  ]
+
+meta def mk_table_row (n : ℕ) : tactic (html empty) :=
+do
+  a ← list.mmap (λ m, mk_table_entry n m) (list.iota' 9),
+  return $ h "tr" [] a
+
+meta def mk_table : tactic (html empty) :=
+do
+  a ← list.mmap (λ n, mk_table_row n) (list.iota' 9),
+  return $ h "table" [cn "collapse"] a
+
 meta def hello_world_tac : tactic (list (html empty)) :=
 do
   g ← local_context,
-  return [h "p" [] format!"Hello world! There are {list.length g} hypotheses!"]
+  u ← mk_table,
+  return [h "p" [] format!"Hello world! There are {list.length g} hypotheses!",
+    u
+  ]
 
 end tac
 
@@ -23,6 +53,7 @@ do
   s ← tactic.read,
   return [
     h "div" [] [html.of_component s (tc.to_component hello_world)],
+    h "hr" [] [],
     h "div" [] [html.of_component s tactic_state_widget]
   ]
 
