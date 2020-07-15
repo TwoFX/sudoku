@@ -1,3 +1,8 @@
+/-
+Copyright (c) 2020 Markus Himmel. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Markus Himmel
+-/
 import init.meta.widget.tactic_component
 import stactic
 
@@ -73,6 +78,8 @@ end tc
 @[reducible] meta def show_sudoku := tactic
 
 open tactic
+
+-- The following two functions are taken from the natural number game and are written by Rob Lewis
 
 meta def copy_decl (d : declaration) : tactic unit :=
 add_decl $ d.update_name $ d.to_name.update_prefix `show_sudoku.interactive
