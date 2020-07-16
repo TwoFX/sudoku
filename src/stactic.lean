@@ -63,19 +63,19 @@ meta def parse_cell_data (s e : expr) : tactic (option cell_data) :=
 
 meta def parse_outer_pencil_data (s e : expr) : tactic (option outer_pencil_data) :=
 (do
-  `(sudoku.outer_pencil_mark %%s %%r₀ %%c₀ %%r₁ %%c₁ %%v) ← infer_type e,
+  `(sudoku.snyder %%s %%r₀ %%c₀ %%r₁ %%c₁ %%v) ← infer_type e,
   [pr₀, pc₀, pr₁, pc₁, pv] ← list.mmap (eval_expr (fin 9)) [r₀, c₀, r₁, c₁, v],
   return $ some ⟨pr₀, pc₀, pr₁, pc₁, pv, e⟩) <|> return none
 
 meta def parse_inner_pencil_data₂ (s e : expr) : tactic (option inner_pencil_data) :=
 (do
-  `(sudoku.inner_pencil_mark₂ %%s %%r %%c %%v₁ %%v₂) ← infer_type e,
+  `(sudoku.double %%s %%r %%c %%v₁ %%v₂) ← infer_type e,
   [pr, pc, pv₁, pv₂] ← list.mmap (eval_expr (fin 9)) [r, c, v₁, v₂],
   return $ some ⟨pr, pc, [pv₁, pv₂], e⟩) <|> return none
 
 meta def parse_inner_pencil_data₃ (s e : expr) : tactic (option inner_pencil_data) :=
 (do
-  `(sudoku.inner_pencil_mark₃ %%s %%r %%c %%v₁ %%v₂ %%v₃) ← infer_type e,
+  `(sudoku.triple %%s %%r %%c %%v₁ %%v₂ %%v₃) ← infer_type e,
   [pr, pc, pv₁, pv₂, pv₃] ← list.mmap (eval_expr (fin 9)) [r, c, v₁, v₂, v₃],
   return $ some ⟨pr, pc, [pv₁, pv₂, pv₃], e⟩) <|> return none
 
@@ -108,7 +108,10 @@ do
   guard (l.row = r.row),
   guard (l.val = r.val),
   guard (l.col ≠ r.col),
-  to_expr ``(sudoku.row_conflict %%s %%l.e %%r.e dec_trivial) >>= exact
+  e ← to_expr ``(sudoku.row_conflict %%s %%l.e %%r.e dec_trivial),
+  tyt ← target,
+  tye ← infer_type e,
+  tactic.exact e
 
 meta def mk_col_conflict (s : expr) (l r : cell_data) : tactic unit :=
 do
@@ -147,40 +150,42 @@ loop cd $ mk_cell_conflict s
 meta def box_conflict (s : expr) (cd : list cell_data) : tactic unit :=
 loop cd $ mk_box_conflict s
 
-meta def box_logic (r c v : pexpr) : tactic unit :=
+meta def split_cases (n : name) : tactic unit :=
+tactic.repeat (do
+  e ← get_local n,
+  tactic.cases e [n, n],
+  skip)
+
+meta def box_logic (r c v : pexpr) (n : name) : tactic unit :=
 do
   s ← get_sudoku,
   h ← to_expr ``(sudoku.box_cases %%s %%r %%c %%v),
-  n ← mk_fresh_name,
   note n none h,
-  tactic.repeat (auto_cases >> skip)
+  split_cases n
 
-meta def row_logic (r v : pexpr) : tactic unit :=
+meta def row_logic (r v : pexpr) (n : name) : tactic unit :=
 do
   s ← get_sudoku,
   h ← to_expr ``(sudoku.row_cases %%s %%r %%v),
-  n ← mk_fresh_name,
   note n none h,
-  tactic.repeat (auto_cases >> skip)
+  split_cases n
 
-meta def col_logic (c v : pexpr) : tactic unit :=
+meta def col_logic (c v : pexpr) (n : name) : tactic unit :=
 do
   s ← get_sudoku,
   h ← to_expr ``(sudoku.col_cases %%s %%c %%v),
-  n ← mk_fresh_name,
   note n none h,
-  tactic.repeat (auto_cases >> skip)
+  split_cases n
 
-meta def cell_logic (r c : pexpr) : tactic unit :=
+meta def cell_logic (r c : pexpr) (n : name) : tactic unit :=
 do
   s ← get_sudoku,
   h ← to_expr ``(sudoku.cell_cases %%s %%r %%c),
-  n ← mk_fresh_name,
   note n none h,
-  tactic.repeat (auto_cases >> skip)
+  split_cases n
 
 meta def conflict' (s : expr) (cd : list cell_data) : tactic unit :=
-row_conflict s cd <|> col_conflict s cd <|> cell_conflict s cd <|> box_conflict s cd
+exfalso >> (row_conflict s cd <|> col_conflict s cd <|> cell_conflict s cd <|> box_conflict s cd)
 
 meta def conflict_with (s : expr) (cd : list cell_data) (e : expr) : tactic unit :=
 do
@@ -205,16 +210,16 @@ meta def conflict : tactic unit :=
 tactic.sudoku.conflict
 
 meta def box_logic' (r c v : parse parser.pexpr) : tactic unit :=
-tactic.sudoku.box_logic r c v
+tactic.sudoku.box_logic r c v `h
 
 meta def row_logic' (r v : parse parser.pexpr) : tactic unit :=
-tactic.sudoku.row_logic r v
+tactic.sudoku.row_logic r v `h
 
 meta def col_logic' (c v : parse parser.pexpr) : tactic unit :=
-tactic.sudoku.col_logic c v
+tactic.sudoku.col_logic c v `h
 
 meta def cell_logic' (r c : parse parser.pexpr) : tactic unit :=
-tactic.sudoku.cell_logic r c
+tactic.sudoku.cell_logic r c `h
 
 
 meta def all_conflict : tactic unit :=
@@ -223,31 +228,36 @@ do
   cd ← get_cell_data s,
   tactic.all_goals (tactic.try (do
     e ← tactic.get_local `h,
-    exfalso >> tactic.sudoku.conflict_with s cd e <|> tactic.exact e
+    tactic.sudoku.conflict_with s cd e <|> tactic.exact e <|> (tactic.left >> tactic.exact e) <|> (tactic.right >> tactic.exact e)
   )) >> skip
 
 meta def box_logic : tactic unit :=
 do
-  `(sudoku.f %%s (%%r, %%c) = %%v) ← target,
-  tactic.sudoku.box_logic ``(((%%r).1 / 3 : ℕ)) ``(((%%c).1 / 3 : ℕ)) (pexpr.of_expr v),
+  t ← target,
+  (r, c, v) ← match t with
+  | `(sudoku.f %%s (%%r, %%c) = %%v) := return (r, c, v)
+  | `(sudoku.snyder %%s %%r₀ %%c₀ %%r₁ %%c₁ %%v) := return (r₀, c₀, v)
+  | _ := tactic.fail "I don't recognize the goal."
+  end,
+  tactic.sudoku.box_logic ``(((%%r).1 / 3 : ℕ)) ``(((%%c).1 / 3 : ℕ)) (pexpr.of_expr v) `h,
   all_conflict
 
 meta def row_logic : tactic unit :=
 do
   `(sudoku.f %%s (%%r, %%c) = %%v) ← target,
-  tactic.sudoku.row_logic (pexpr.of_expr r) (pexpr.of_expr v),
+  tactic.sudoku.row_logic (pexpr.of_expr r) (pexpr.of_expr v) `h,
   all_conflict
 
 meta def col_logic : tactic unit :=
 do
   `(sudoku.f %%s (%%r, %%c) = %%v) ← target,
-  tactic.sudoku.col_logic (pexpr.of_expr c) (pexpr.of_expr v),
+  tactic.sudoku.col_logic (pexpr.of_expr c) (pexpr.of_expr v) `h,
   all_conflict
 
 meta def cell_logic : tactic unit :=
 do
   `(sudoku.f %%s (%%r, %%c) = %%v) ← target,
-  tactic.sudoku.cell_logic (pexpr.of_expr r) (pexpr.of_expr c),
+  tactic.sudoku.cell_logic (pexpr.of_expr r) (pexpr.of_expr c) `h,
   all_conflict
 
 meta def naked_single : tactic unit :=
