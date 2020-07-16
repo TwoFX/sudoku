@@ -42,6 +42,7 @@ bool solve(vector<vector<int>> &s, int i, int j) {
 		s[i][j] = k;
 		if (solve(s, i, j + 1)) return true;
 	}
+	s[i][j] = 0;
 
 	return false;
 }
