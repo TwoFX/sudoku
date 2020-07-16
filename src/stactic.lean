@@ -187,10 +187,10 @@ do
 meta def conflict' (s : expr) (cd : list cell_data) : tactic unit :=
 exfalso >> (row_conflict s cd <|> col_conflict s cd <|> cell_conflict s cd <|> box_conflict s cd)
 
-meta def conflict_with (s : expr) (cd : list cell_data) (e : expr) : tactic unit :=
+meta def conflict_with (s : expr) (cd : list cell_data) (es : list expr) : tactic unit :=
 do
-  some d ← parse_cell_data s e,
-  conflict' s (d::cd)
+  ds ← list.mfiltermap (parse_cell_data s) es,
+  conflict' s (list.append ds cd)
 
 meta def conflict : tactic unit :=
 do
@@ -222,16 +222,21 @@ meta def cell_logic' (r c : parse parser.pexpr) : tactic unit :=
 tactic.sudoku.cell_logic r c `h
 
 
-meta def all_conflict : tactic unit :=
+meta def all_conflict (lems : parse with_ident_list) : tactic unit :=
 do
   s ← get_sudoku,
   cd ← get_cell_data s,
-  tactic.all_goals (tactic.try (do
+  let resolve_single (ns : list name) : tactic unit := (tactic.all_goals $ tactic.try (do
     e ← tactic.get_local `h,
-    tactic.sudoku.conflict_with s cd e <|> tactic.exact e <|> (tactic.left >> tactic.exact e) <|> (tactic.right >> tactic.exact e)
-  )) >> skip
+    es ← list.mmap get_local ns,
+    tactic.sudoku.conflict_with s cd (e::es) <|> tactic.exact e <|> (tactic.left >> tactic.exact e) <|> (tactic.right >> tactic.exact e))) >> skip,
+  resolve_single [],
+  list.mmap' (λ n : name, do
+    e ← get_local n,
+    tactic.cases e [n, n],
+    resolve_single [n]) lems
 
-meta def box_logic : tactic unit :=
+meta def box_logic (lems : parse with_ident_list) : tactic unit :=
 do
   t ← target,
   (r, c, v) ← match t with
@@ -240,25 +245,25 @@ do
   | _ := tactic.fail "I don't recognize the goal."
   end,
   tactic.sudoku.box_logic ``(((%%r).1 / 3 : ℕ)) ``(((%%c).1 / 3 : ℕ)) (pexpr.of_expr v) `h,
-  all_conflict
+  all_conflict lems
 
 meta def row_logic : tactic unit :=
 do
   `(sudoku.f %%s (%%r, %%c) = %%v) ← target,
   tactic.sudoku.row_logic (pexpr.of_expr r) (pexpr.of_expr v) `h,
-  all_conflict
+  all_conflict []
 
 meta def col_logic : tactic unit :=
 do
   `(sudoku.f %%s (%%r, %%c) = %%v) ← target,
   tactic.sudoku.col_logic (pexpr.of_expr c) (pexpr.of_expr v) `h,
-  all_conflict
+  all_conflict []
 
 meta def cell_logic : tactic unit :=
 do
   `(sudoku.f %%s (%%r, %%c) = %%v) ← target,
   tactic.sudoku.cell_logic (pexpr.of_expr r) (pexpr.of_expr c) `h,
-  all_conflict
+  all_conflict []
 
 meta def naked_single : tactic unit :=
 cell_logic
