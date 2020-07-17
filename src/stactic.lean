@@ -248,10 +248,12 @@ do
     es ← list.mmap get_local ns,
     tactic.sudoku.conflict_with s cd es <|> tactic.exact (list.head es) <|> (tactic.left >> tactic.exact es.head) <|> (tactic.right >> tactic.exact es.head))) >> skip,
   resolve_single ns,
-  list.mmap' (λ n : name, do
+  let idxs := (list.iota lems.length).reverse,
+  list.mmap' (λ i : ℕ, do
+    some n ← return $ lems.nth (i - 1),
     e ← get_local n,
     tactic.all_goals $ tactic.try $ tactic.cases e [n, n],
-    resolve_single (n::ns)) lems
+    resolve_single ((lems.take i).append ns)) idxs
 
 meta def box_logic (lems : parse with_ident_list) : tactic unit :=
 do

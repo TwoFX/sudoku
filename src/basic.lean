@@ -149,13 +149,13 @@ s.f (i, j) = k ∨ s.f (i, j) = l ∨ s.f (i, j) = m
 
 /-- The first (trivial) piece of sudoku theory: If there are two outer pencil marks relating two
     cells, then we get an inner pencil mark for those two numbers in both cells. -/
-lemma inner_left_of_outer {s : sudoku} {i j k l m n : fin 9} (h₀ : snyder s i j k l m)
+lemma double_left_of_snyder {s : sudoku} {i j k l m n : fin 9} (h₀ : snyder s i j k l m)
   (h₁ : snyder s i j k l n) (h₂ : m ≠ n) : double s i j m n :=
 by { unfold double, tidy }
 
 /-- The first (trivial) piece of sudoku theory: If there are two outer pencil marks relating two
     cells, then we get an inner pencil mark for those two numbers in both cells. -/
-lemma inner_right_of_outer {s : sudoku} {i j k l m n : fin 9} (h₀ : snyder s i j k l m)
+lemma double_right_of_snyder {s : sudoku} {i j k l m n : fin 9} (h₀ : snyder s i j k l m)
   (h₁ : snyder s i j k l n) (h₂ : m ≠ n) : double s k l m n :=
 by { unfold double, tidy }
 
