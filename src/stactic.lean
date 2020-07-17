@@ -250,7 +250,7 @@ do
   resolve_single ns,
   list.mmap' (λ n : name, do
     e ← get_local n,
-    tactic.cases e [n, n],
+    tactic.all_goals $ tactic.try $ tactic.cases e [n, n],
     resolve_single (n::ns)) lems
 
 meta def box_logic (lems : parse with_ident_list) : tactic unit :=
