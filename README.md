@@ -13,4 +13,5 @@ Assumes that you have a C++ compiler via `g++`. On Debian/Ubuntu,
 4. Put a sudoku in a file (as 81 numbers separated by white space, 0 is blank). See `scripts/easy1` for an example.
 5. `./gen < your_sudoku_file > src/play.lean`
 6. `code .`
-7. Open `play.lean` in VS Code and open `play.lean`.
+7. Open the settings (Ctrl+Comma), search for Lean Time Limit, and set it to 0.
+8. Restart VS Code, and open `play.lean`.
