@@ -1,4 +1,5 @@
 *cc*
+src/mwe.lean
 *.olean
 /_target
 /leanpkg.path

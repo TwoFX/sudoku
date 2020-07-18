@@ -139,6 +139,9 @@ end
 def snyder (s : sudoku) (i j k l m : fin 9) : Prop :=
 s.f (i, j) = m ∨ s.f (k, l) = m
 
+def snyder₃ (s : sudoku) (i j k l m n o : fin 9) : Prop :=
+s.f (i, j) = o ∨ s.f (k, l) = o ∨ s.f (m, n) = o
+
 /-- Inner pencil marks capture the fact that a certain cell contains one of two numbers. -/
 def double (s : sudoku) (i j k l : fin 9) : Prop :=
 s.f (i, j) = k ∨ s.f (i, j) = l
@@ -146,6 +149,12 @@ s.f (i, j) = k ∨ s.f (i, j) = l
 /-- Inner pencil marks capture the fact that a certain cell contains one of three numbers. -/
 def triple (s : sudoku) (i j k l m : fin 9) : Prop :=
 s.f (i, j) = k ∨ s.f (i, j) = l ∨ s.f (i, j) = m
+
+lemma triple_perm₁ {s : sudoku} {i j k l m : fin 9} : s.triple i j k l m → s.triple i j l k m :=
+by { unfold triple, tauto }
+
+lemma triple_perm₂ {s : sudoku} {i j k l m : fin 9} : s.triple i j k l m → s.triple i j m l k :=
+by { unfold triple, tauto }
 
 /-- The first (trivial) piece of sudoku theory: If there are two outer pencil marks relating two
     cells, then we get an inner pencil mark for those two numbers in both cells. -/
@@ -158,5 +167,79 @@ by { unfold double, tidy }
 lemma double_right_of_snyder {s : sudoku} {i j k l m n : fin 9} (h₀ : snyder s i j k l m)
   (h₁ : snyder s i j k l n) (h₂ : m ≠ n) : double s k l m n :=
 by { unfold double, tidy }
+
+lemma triple_of_double₁ {s : sudoku} {i j k l m : fin 9} : s.double i j k l → s.triple i j m k l :=
+by { unfold triple, tidy }
+
+lemma triple_of_double₂ {s : sudoku} {i j k l m : fin 9} : s.double i j k l → s.triple i j k m l :=
+by { unfold triple, tidy }
+
+lemma triple_of_double₃ {s : sudoku} {i j k l m : fin 9} : s.double i j k l → s.triple i j k l m :=
+by { unfold triple, tidy }
+
+/-- Two cells are in contention if they "see each other", i.e., cannot contain the same number. -/
+def contention (s : sudoku) (i j k l : fin 9) : Prop :=
+∀ (m : fin 9), s.f (i, j) = m → s.f (k, l) = m → false
+
+lemma row_contention {s : sudoku} {i j k : fin 9} (h : j ≠ k) : s.contention i j i k :=
+λ m h₀ h₁, s.row_conflict h₀ h₁ h
+
+lemma col_contention {s : sudoku} {i j k : fin 9} (h : i ≠ j) : s.contention i k j k :=
+λ m h₀ h₁, s.col_conflict h₀ h₁ h
+
+lemma box_contention {s : sudoku} {i j k l : fin 9} (h : i.1 / 3 = k.1 / 3)
+  (h' : j.1 / 3 = l.1 / 3) (h'' : i ≠ k ∨ j ≠ l) : s.contention i j k l :=
+λ m h₀ h₁, s.box_conflict h₀ h₁ h h' h''
+
+lemma snyder₃_of_triple₁ {s : sudoku} {i j k l m n o p q : fin 9}
+  (h₀ : s.triple i j o p q) (h₁ : s.triple k l o p q) (h₂ : s.triple m n o p q)
+  (h : s.contention i j k l) (h' : s.contention i j m n) (h'' : s.contention k l m n) :
+  s.snyder₃ i j k l m n o :=
+begin
+  unfold snyder₃,
+  rcases h₀ with _|_|_,
+  { left, exact h₀ },
+  { rcases h₁ with _|_|_,
+    { right, left, exact h₁ },
+    { exfalso, exact h _ h₀ h₁ },
+    rcases h₂ with _|_|_,
+    { right, right, exact h₂ },
+    { exfalso, exact h' _ h₀ h₂ },
+    { exfalso, exact h'' _ h₁ h₂ } },
+  { rcases h₁ with _|_|_,
+    { right, left, exact h₁ },
+    swap, { exfalso, exact h _ h₀ h₁ },
+    rcases h₂ with _|_|_,
+    { right, right, exact h₂ },
+    { exfalso, exact h'' _ h₁ h₂ },
+    { exfalso, exact h' _ h₀ h₂ } }
+end
+
+lemma snyder₃_of_triple₂ {s : sudoku} {i j k l m n o p q : fin 9}
+  (h₀ : s.triple i j o p q) (h₁ : s.triple k l o p q) (h₂ : s.triple m n o p q)
+  (h : s.contention i j k l) (h' : s.contention i j m n) (h'' : s.contention k l m n) :
+  s.snyder₃ i j k l m n p :=
+snyder₃_of_triple₁ (triple_perm₁ h₀) (triple_perm₁ h₁) (triple_perm₁ h₂) h h' h''
+
+lemma snyder₃_of_triple₃ {s : sudoku} {i j k l m n o p q : fin 9}
+  (h₀ : s.triple i j o p q) (h₁ : s.triple k l o p q) (h₂ : s.triple m n o p q)
+  (h : s.contention i j k l) (h' : s.contention i j m n) (h'' : s.contention k l m n) :
+  s.snyder₃ i j k l m n q :=
+snyder₃_of_triple₁ (triple_perm₂ h₀) (triple_perm₂ h₁) (triple_perm₂ h₂) h h' h''
+
+lemma snyder₃_of_triple_row₁ {s : sudoku} {i j k l m n o : fin 9}
+  (hj : s.triple i j m n o) (hk : s.triple i k m n o) (hl : s.triple i l m n o)
+  (hjk : j ≠ k) (hkl : k ≠ l) (hjl : j ≠ l) : s.snyder₃ i j i k i l m :=
+snyder₃_of_triple₁ hj hk hl (row_contention hjk) (row_contention hjl) (row_contention hkl)
+
+lemma snyder₃_of_triple_row₂ {s : sudoku} {i j k l m n o : fin 9}
+  (hj : s.triple i j m n o) (hk : s.triple i k m n o) (hl : s.triple i l m n o)
+  (hjk : j ≠ k) (hkl : k ≠ l) (hjl : j ≠ l) : s.snyder₃ i j i k i l n :=
+snyder₃_of_triple₂ hj hk hl (row_contention hjk) (row_contention hjl) (row_contention hkl)
+
+lemma snyder₃_of_triple_row₃ {s : sudoku} {i j k l m n o : fin 9}
+  (hj : s.triple i j m n o) (hk : s.triple i k m n o) (hl : s.triple i l m n o)
+  (hjk : j ≠ k) (hkl : k ≠ l) (hjl : j ≠ l) : s.snyder₃ i j i k i l o :=
+snyder₃_of_triple₃ hj hk hl (row_contention hjk) (row_contention hjl) (row_contention hkl)
 
 end sudoku

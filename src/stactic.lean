@@ -103,14 +103,25 @@ do
   ip ← get_inner_pencil_data s,
   return ⟨cd, op, ip⟩
 
+meta def te1 : pexpr → tactic expr :=
+to_expr
+
+meta def te2 : pexpr → tactic expr :=
+to_expr
+
 meta def mk_row_conflict (s : expr) (l r : cell_data) : tactic unit :=
 do
   guard (l.row = r.row),
   guard (l.val = r.val),
   guard (l.col ≠ r.col),
   e ← to_expr ``(sudoku.row_conflict %%s %%l.e %%r.e dec_trivial),
-  tyt ← target,
-  tye ← infer_type e,
+  /-e ← te1 ``(sudoku.row_conflict %%s %%l.e %%r.e),
+  tactic.trace e,
+  ty ← infer_type e,
+  tactic.trace ty,
+  e ← te2 ``(%%e (of_as_true (by tactic.triv))),
+  --f ← te2 ``(%%e dec_trivial),
+  tactic.trace "Hi",-/
   tactic.exact e
 
 meta def mk_col_conflict (s : expr) (l r : cell_data) : tactic unit :=
@@ -246,13 +257,18 @@ do
   cd ← get_cell_data s,
   let resolve_single (ns : list name) : tactic unit := (tactic.all_goals $ tactic.try (do
     es ← list.mmap get_local ns,
-    tactic.sudoku.conflict_with s cd es <|> tactic.exact (list.head es) <|> (tactic.left >> tactic.exact es.head) <|> (tactic.right >> tactic.exact es.head))) >> skip,
+    tactic.sudoku.conflict_with s cd es <|>
+      tactic.exact (list.head es) <|>
+      (tactic.left >> tactic.exact es.head) <|>
+      (tactic.right >> tactic.exact es.head) <|>
+      (tactic.right >> tactic.left >> tactic.exact es.head) <|>
+      (tactic.right >> tactic.right >> tactic.exact es.head) )) >> skip,
   resolve_single ns,
   let idxs := (list.iota lems.length).reverse,
   list.mmap' (λ i : ℕ, do
     some n ← return $ lems.nth (i - 1),
-    e ← get_local n,
-    tactic.all_goals $ tactic.try $ tactic.cases e [n, n],
+    tactic.all_goals $ tactic.try $ (do e ← get_local n, tactic.cases e [n, n]),
+    tactic.all_goals $ tactic.try $ (do e ← get_local n, tactic.cases e [n, n]),
     resolve_single ((lems.take i).append ns)) idxs
 
 meta def box_logic (lems : parse with_ident_list) : tactic unit :=
@@ -278,21 +294,22 @@ do
   tactic.sudoku.col_logic (pexpr.of_expr c) (pexpr.of_expr v) `h,
   all_conflict [] [`h]
 
-meta def cell_logic : tactic unit :=
+meta def cell_logic (lems : parse with_ident_list) : tactic unit :=
 do
   t ← target,
   (r, c) ← match t with
   | `(sudoku.f %%s (%%r, %%c) = %%v) := return (r, c)
   | `(sudoku.double %%s %%r %%c %%v₁ %%v₂) := return (r, c)
+  | `(sudoku.triple %%s %%r %%c %%v₁ %%v₂ %%v₃) := return (r, c)
   | _ := tactic.fail "I don't recognize the goal"
   end,
   tactic.sudoku.cell_logic (pexpr.of_expr r) (pexpr.of_expr c) `h,
-  all_conflict [] [`h]
+  all_conflict lems [`h]
 
 meta def pencil (lems : parse with_ident_list) : tactic unit :=
 all_conflict lems []
 
-meta def naked_single : tactic unit :=
+meta def naked_single : parse with_ident_list → tactic unit :=
 cell_logic
 
 meta def sudoku_finish : tactic unit :=
