@@ -63,4 +63,6 @@ then you have to prove that there is either an a or a b in (x, y).
 
 Doing this will give you a pencil mark. To later use such a pencil mark in a deduction, you can say things like `box_logic with p0 p1`, which for every possible position in the box will first try to find an unconditional conflict and then splits over p0 and p1 in the cases where it gets stuck.
 
+Finally, you can use `pencil with p0 p1` to make case distinctions over pencil marks only.
+
 For hard sudokus, you'll want to formalize some actual sudoku theory. I have started doing that in the file `basic.lean`, but that work is still in its very early stages.
