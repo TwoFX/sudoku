@@ -13,7 +13,7 @@ First, we download the code.
 Next, we compile the program that generates levels for us.
 
 2. `cd sudoku`
-3. `g++ -O2 scripts/gen.cpp -o gen`
+3. `g++ -std=gnu++11 -O2 scripts/gen.cpp -o gen`
 
 Next, we will use it to generate a level for us.
 
