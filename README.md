@@ -5,18 +5,33 @@
 ## How to start playing
 
 Assumes that you have a C++ compiler via `g++`. On Debian/Ubuntu,
-`sudo apt install build-essential` should to the trick.
+`sudo apt install build-essential` should do the trick.
 
+First, we download the code.
 1. `leanproject get TwoFx/sudoku`
+
+Next, we compile the program that generates levels for us.
+
 2. `cd sudoku`
 3. `g++ -O2 scripts/gen.cpp -o gen`
+
+Next, we will use it to generate a level for us.
+
 4. Put a sudoku in a file (as 81 numbers separated by white space, 0 is blank). See `scripts/easy1` for an example.
 5. `./gen < your_sudoku_file > src/play.lean`
+
+Next, we have to tell Visual Studio code to not time out our code. This is needed because I wrote very inefficient and slow code. You will notice this while playing.
+
 6. `code .`
 7. Open the settings (Ctrl+Comma), search for Lean Time Limit, and set it to 0.
+
+Finally, we are ready to go.
+
 8. Restart VS Code, and open `play.lean`.
 
 ## How to play
+
+Please look at the screenshot for an example of how a game of sudoku can look.
 
 Cells are zero-indexed from the top right. You place the number z in cell (x, y) by saying
 
