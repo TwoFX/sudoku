@@ -33,7 +33,7 @@ Finally, we are ready to go.
 
 Please look at the screenshot for an example of how a game of sudoku can look.
 
-Cells are zero-indexed from the top right. You place the number z in cell (x, y) by saying
+Cells are zero-indexed from the top left. You place the number z in cell (x, y) by saying
 
 ```lean
 have cxy : s.f (x, y) = z,
