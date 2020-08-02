@@ -120,36 +120,63 @@ do
 
 meta def mk_neq (l r : fin 9) : tactic expr :=
 do
-  n ← mk_fresh_name,
   bla ← to_expr ``(%%(nat.reflect l.val) ≠ %%(nat.reflect r.val)),
 
   -- Don't try this at home kids
   (_, `(eq_true_intro %%a)) ← norm_num.eval_ineq bla,
   return a
 
+meta def mk_app_stupid_aux : expr → list expr → expr
+| s [] := s
+| s (t::ts) := expr.app (mk_app_stupid_aux s ts) t
+
+meta def mk_app_stupid' (s : expr) (ls : list expr) : expr :=
+mk_app_stupid_aux s ls.reverse
+
+meta def mk_app_stupid (n : name) (ls : list expr) : expr :=
+mk_app_stupid' (expr.const n []) ls
+
+meta def nine : tactic expr := to_expr ``(9)
+
+meta def mk_neq' (l r : fin 9) (a b : expr) : tactic expr :=
+do
+  n ← mk_fresh_name,
+  bla ← to_expr ``(%%a ≠ %%b),
+  u ← mk_neq l r, -- u states that l.1 ≠ r.1
+  f ← tactic.assert n bla,
+  h ← mk_fresh_name,
+  e ← tactic.intro h,
+  ni ← nine,
+  let i := mk_app_stupid `fin.veq_of_eq [ni, a, b, e],
+  let j := expr.app u i,
+  tactic.exact j,
+  --to_expr ``(%%u (fin.veq_of_eq %%e)) >>= tactic.exact,
+  return f
+
 meta def mk_row_conflict (s : expr) (l r : cell_data) : tactic unit :=
 do
   guard (l.row = r.row),
   guard (l.val = r.val),
   guard (l.col ≠ r.col),
-  f ← mk_neq l.col r.col,
-  to_expr ``(sudoku.row_conflict %%s %%l.e %%r.e (λ h, %%f (fin.veq_of_eq h))) >>= tactic.exact
+  f ← mk_neq' l.col r.col l.ce r.ce,
+  tactic.exact (mk_app_stupid `sudoku.row_conflict [s, l.re, l.ce, r.ce, l.ve, l.e, r.e, f])
 
 meta def mk_col_conflict (s : expr) (l r : cell_data) : tactic unit :=
 do
   guard (l.row ≠ r.row),
   guard (l.val = r.val),
   guard (l.col = r.col),
-  f ← mk_neq l.row r.row,
-  to_expr ``(sudoku.col_conflict %%s %%l.e %%r.e (λ h, %%f (fin.veq_of_eq h))) >>= exact
+  f ← mk_neq' l.row r.row l.re r.re,
+  tactic.exact (mk_app_stupid `sudoku.col_conflict [s, l.re, r.re, l.ce, l.ve, l.e, r.e, f])
 
 meta def mk_cell_conflict (s : expr) (l r : cell_data) : tactic unit :=
 do
   guard (l.row = r.row),
   guard (l.col = r.col),
   guard (l.val ≠ r.val),
-  f ← mk_neq l.val r.val,
-  to_expr ``(sudoku.cell_conflict %%s %%l.e %%r.e (λ h, %%f (fin.veq_of_eq h))) >>= exact
+  f ← mk_neq' l.val r.val l.ve r.ve,
+  tactic.exact (mk_app_stupid `sudoku.cell_conflict [s, l.re, l.ce, l.ve, r.ve, l.e, r.e, f])
+  --to_expr ``(sudoku.cell_conflict %%s %%l.e %%r.e (λ h, %%f (fin.veq_of_eq h))) >>= exact
 
 meta def mk_box_conflict (s : expr) (l r : cell_data) : tactic unit :=
 do
