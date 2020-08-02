@@ -55,12 +55,25 @@ meta instance format_cell_data : has_to_format cell_data :=
 { to_format := λ d,
   format!"{cell_data.e d}" }
 
+meta def eval_fin : expr → fin 9
+| `(bit1 %%e) := let i := eval_fin e in ⟨(2 * i.1 + 1) % 9, nat.mod_lt _ $ nat.zero_lt_succ _⟩
+| `(bit0 %%e) := let i := eval_fin e in ⟨(2 * i.1) % 9, nat.mod_lt _ $ nat.zero_lt_succ _⟩
+| `(has_one.one) := 1
+| `(has_zero.zero) := 0
+| `(coe %%e) := eval_fin e
+| `(%%e * %%f) := let i := eval_fin e, j := eval_fin f in ⟨(i.1 * j.1) % 9, nat.mod_lt _ $ nat.zero_lt_succ _⟩
+| `(%%e + %%f) := let i := eval_fin e, j := eval_fin f in ⟨(i.1 + j.1) % 9, nat.mod_lt _ $ nat.zero_lt_succ _⟩
+| `(%%e / %%f) := let i := eval_fin e, j := eval_fin f in ⟨(i.1 / j.1) % 9, nat.mod_lt _ $ nat.zero_lt_succ _⟩
+| `(fin.val %%e) := eval_fin e
+| _ := 0
+
 meta def parse_cell_data (s e : expr) : tactic (option cell_data) :=
 (do
   `(sudoku.f %%s (%%a, %%b) = %%c) ← infer_type e,
-  u ← eval_expr (fin 9) a,
-  v ← eval_expr (fin 9) b,
-  w ← eval_expr (fin 9) c,
+  --tactic.trace a,
+  let u := eval_fin a,
+  let v := eval_fin b,
+  let w := eval_fin c,
   return $ some ⟨u, v, w, e, a, b, c⟩) <|> return none
 
 meta def parse_outer_pencil_data (s e : expr) : tactic (option outer_pencil_data) :=
