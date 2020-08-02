@@ -109,9 +109,10 @@ meta def mk_neq (l r : fin 9) : tactic expr :=
 do
   n ← mk_fresh_name,
   bla ← to_expr ``(%%(nat.reflect l.val) ≠ %%(nat.reflect r.val)),
-  e ← tactic.assert n bla,
-  tactic.interactive.norm_num1 (interactive.loc.ns [none]),
-  return e
+
+  -- Don't try this at home kids
+  (_, `(eq_true_intro %%a)) ← norm_num.eval_ineq bla,
+  return a
 
 meta def mk_row_conflict (s : expr) (l r : cell_data) : tactic unit :=
 do
@@ -144,7 +145,7 @@ do
   guard (l.col / 3 = r.col / 3),
   guard (l.row ≠ r.row ∨ l.col ≠ r.col),
   --f₁ ←
-  e₁ ← to_expr ``(sudoku.box_conflict %%s %%l.e %%r.e rfl rfl),
+  e₁ ← to_expr ``(sudoku.box_conflict %%s %%l.e %%r.e (by norm_num) (by norm_num)),
   (if l.row ≠ r.row then do f ← mk_neq l.row r.row, to_expr ``(%%e₁ (λ h, %%f (fin.veq_of_eq h)))
     else do f ← mk_neq l.col r.col, to_expr ``(%%e₁ (λ h, %%f (fin.veq_of_eq h)))) >>= tactic.exact
 
