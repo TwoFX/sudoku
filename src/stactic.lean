@@ -4,6 +4,8 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Markus Himmel
 -/
 import basic
+import tactic.norm_num
+import init.meta.has_reflect
 
 universes u v w
 
@@ -33,7 +35,7 @@ local_context >>= list.mfirst' (λ t, (do `(sudoku) ← infer_type t, return tt)
 
 meta structure cell_data :=
 (row col val : fin 9)
-(e : expr)
+(e re ce ve : expr)
 
 meta structure outer_pencil_data :=
 (row₀ col₀ row₁ col₁ val : fin 9)
@@ -59,7 +61,7 @@ meta def parse_cell_data (s e : expr) : tactic (option cell_data) :=
   u ← eval_expr (fin 9) a,
   v ← eval_expr (fin 9) b,
   w ← eval_expr (fin 9) c,
-  return $ some ⟨u, v, w, e⟩) <|> return none
+  return $ some ⟨u, v, w, e, a, b, c⟩) <|> return none
 
 meta def parse_outer_pencil_data (s e : expr) : tactic (option outer_pencil_data) :=
 (do
@@ -103,40 +105,37 @@ do
   ip ← get_inner_pencil_data s,
   return ⟨cd, op, ip⟩
 
-meta def te1 : pexpr → tactic expr :=
-to_expr
-
-meta def te2 : pexpr → tactic expr :=
-to_expr
+meta def mk_neq (l r : fin 9) : tactic expr :=
+do
+  n ← mk_fresh_name,
+  bla ← to_expr ``(%%(nat.reflect l.val) ≠ %%(nat.reflect r.val)),
+  e ← tactic.assert n bla,
+  tactic.interactive.norm_num1 (interactive.loc.ns [none]),
+  return e
 
 meta def mk_row_conflict (s : expr) (l r : cell_data) : tactic unit :=
 do
   guard (l.row = r.row),
   guard (l.val = r.val),
   guard (l.col ≠ r.col),
-  e ← to_expr ``(sudoku.row_conflict %%s %%l.e %%r.e dec_trivial),
-  /-e ← te1 ``(sudoku.row_conflict %%s %%l.e %%r.e),
-  tactic.trace e,
-  ty ← infer_type e,
-  tactic.trace ty,
-  e ← te2 ``(%%e (of_as_true (by tactic.triv))),
-  --f ← te2 ``(%%e dec_trivial),
-  tactic.trace "Hi",-/
-  tactic.exact e
+  f ← mk_neq l.col r.col,
+  to_expr ``(sudoku.row_conflict %%s %%l.e %%r.e (λ h, %%f (fin.veq_of_eq h))) >>= tactic.exact
 
 meta def mk_col_conflict (s : expr) (l r : cell_data) : tactic unit :=
 do
   guard (l.row ≠ r.row),
   guard (l.val = r.val),
   guard (l.col = r.col),
-  to_expr ``(sudoku.col_conflict %%s %%l.e %%r.e dec_trivial) >>= exact
+  f ← mk_neq l.row r.row,
+  to_expr ``(sudoku.col_conflict %%s %%l.e %%r.e (λ h, %%f (fin.veq_of_eq h))) >>= exact
 
 meta def mk_cell_conflict (s : expr) (l r : cell_data) : tactic unit :=
 do
   guard (l.row = r.row),
   guard (l.col = r.col),
   guard (l.val ≠ r.val),
-  to_expr ``(sudoku.cell_conflict %%s %%l.e %%r.e dec_trivial) >>= exact
+  f ← mk_neq l.val r.val,
+  to_expr ``(sudoku.cell_conflict %%s %%l.e %%r.e (λ h, %%f (fin.veq_of_eq h))) >>= exact
 
 meta def mk_box_conflict (s : expr) (l r : cell_data) : tactic unit :=
 do
@@ -144,7 +143,10 @@ do
   guard (l.row / 3 = r.row / 3),
   guard (l.col / 3 = r.col / 3),
   guard (l.row ≠ r.row ∨ l.col ≠ r.col),
-  to_expr ``(sudoku.box_conflict %%s %%l.e %%r.e dec_trivial dec_trivial dec_trivial) >>= exact
+  --f₁ ←
+  e₁ ← to_expr ``(sudoku.box_conflict %%s %%l.e %%r.e rfl rfl),
+  (if l.row ≠ r.row then do f ← mk_neq l.row r.row, to_expr ``(%%e₁ (λ h, %%f (fin.veq_of_eq h)))
+    else do f ← mk_neq l.col r.col, to_expr ``(%%e₁ (λ h, %%f (fin.veq_of_eq h)))) >>= tactic.exact
 
 meta def loop (cd : list cell_data) (f : cell_data → cell_data → tactic unit) : tactic unit :=
 list.mfirst (λ l : cell_data, list.mfirst (λ r : cell_data, f l r) cd) cd
@@ -251,10 +253,8 @@ meta def cell_logic' (r c : parse parser.pexpr) : tactic unit :=
 tactic.sudoku.cell_logic r c `h
 
 
-meta def all_conflict (lems : list name) (ns : list name) : tactic unit :=
+meta def all_conflict (s : expr) (cd : list cell_data) (lems : list name) (ns : list name) : tactic unit :=
 do
-  s ← get_sudoku,
-  cd ← get_cell_data s,
   let resolve_single (ns : list name) : tactic unit := (tactic.all_goals $ tactic.try (do
     es ← list.mmap get_local ns,
     tactic.sudoku.conflict_with s cd es <|>
@@ -279,20 +279,26 @@ do
   | `(sudoku.snyder %%s %%r₀ %%c₀ %%r₁ %%c₁ %%v) := return (r₀, c₀, v)
   | _ := tactic.fail "I don't recognize the goal."
   end,
+  s ← get_sudoku,
+  cd ← get_cell_data s,
   tactic.sudoku.box_logic ``(((%%r).1 / 3 : ℕ)) ``(((%%c).1 / 3 : ℕ)) (pexpr.of_expr v) `h,
-  all_conflict lems [`h]
+  all_conflict s cd lems [`h]
 
 meta def row_logic : tactic unit :=
 do
+  s ← get_sudoku,
+  cd ← get_cell_data s,
   `(sudoku.f %%s (%%r, %%c) = %%v) ← target,
   tactic.sudoku.row_logic (pexpr.of_expr r) (pexpr.of_expr v) `h,
-  all_conflict [] [`h]
+  all_conflict s cd [] [`h]
 
 meta def col_logic : tactic unit :=
 do
+  s ← get_sudoku,
+  cd ← get_cell_data s,
   `(sudoku.f %%s (%%r, %%c) = %%v) ← target,
   tactic.sudoku.col_logic (pexpr.of_expr c) (pexpr.of_expr v) `h,
-  all_conflict [] [`h]
+  all_conflict s cd [] [`h]
 
 meta def cell_logic (lems : parse with_ident_list) : tactic unit :=
 do
@@ -303,11 +309,16 @@ do
   | `(sudoku.triple %%s %%r %%c %%v₁ %%v₂ %%v₃) := return (r, c)
   | _ := tactic.fail "I don't recognize the goal"
   end,
+  s ← get_sudoku,
+  cd ← get_cell_data s,
   tactic.sudoku.cell_logic (pexpr.of_expr r) (pexpr.of_expr c) `h,
-  all_conflict lems [`h]
+  all_conflict s cd lems [`h]
 
 meta def pencil (lems : parse with_ident_list) : tactic unit :=
-all_conflict lems []
+do
+  s ← get_sudoku,
+  cd ← get_cell_data s,
+  all_conflict s cd lems []
 
 meta def naked_single : parse with_ident_list → tactic unit :=
 cell_logic
