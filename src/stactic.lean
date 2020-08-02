@@ -145,9 +145,9 @@ do
   guard (l.col / 3 = r.col / 3),
   guard (l.row ≠ r.row ∨ l.col ≠ r.col),
   --f₁ ←
-  e₁ ← to_expr ``(sudoku.box_conflict %%s %%l.e %%r.e (by norm_num) (by norm_num)),
-  (if l.row ≠ r.row then do f ← mk_neq l.row r.row, to_expr ``(%%e₁ (λ h, %%f (fin.veq_of_eq h)))
-    else do f ← mk_neq l.col r.col, to_expr ``(%%e₁ (λ h, %%f (fin.veq_of_eq h)))) >>= tactic.exact
+  e₁ ← to_expr ``(sudoku.box_conflict %%s %%l.e %%r.e rfl rfl),
+  (if l.row ≠ r.row then do f ← mk_neq l.row r.row, to_expr ``(%%e₁ (or.inl (λ h, %%f (fin.veq_of_eq h))))
+    else do f ← mk_neq l.col r.col, to_expr ``(%%e₁ (λ h, (or.inr %%f (fin.veq_of_eq h))))) >>= tactic.exact
 
 meta def loop (cd : list cell_data) (f : cell_data → cell_data → tactic unit) : tactic unit :=
 list.mfirst (λ l : cell_data, list.mfirst (λ r : cell_data, f l r) cd) cd
