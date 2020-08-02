@@ -70,7 +70,6 @@ meta def eval_fin : expr → fin 9
 meta def parse_cell_data (s e : expr) : tactic (option cell_data) :=
 (do
   `(sudoku.f %%s (%%a, %%b) = %%c) ← infer_type e,
-  --tactic.trace a,
   let u := eval_fin a,
   let v := eval_fin b,
   let w := eval_fin c,
@@ -150,7 +149,6 @@ do
   let i := mk_app_stupid `fin.veq_of_eq [ni, a, b, e],
   let j := expr.app u i,
   tactic.exact j,
-  --to_expr ``(%%u (fin.veq_of_eq %%e)) >>= tactic.exact,
   return f
 
 meta def mk_row_conflict (s : expr) (l r : cell_data) : tactic unit :=
@@ -176,7 +174,6 @@ do
   guard (l.val ≠ r.val),
   f ← mk_neq' l.val r.val l.ve r.ve,
   tactic.exact (mk_app_stupid `sudoku.cell_conflict [s, l.re, l.ce, l.ve, r.ve, l.e, r.e, f])
-  --to_expr ``(sudoku.cell_conflict %%s %%l.e %%r.e (λ h, %%f (fin.veq_of_eq h))) >>= exact
 
 meta def mk_box_conflict (s : expr) (l r : cell_data) : tactic unit :=
 do
@@ -184,7 +181,6 @@ do
   guard (l.row / 3 = r.row / 3),
   guard (l.col / 3 = r.col / 3),
   guard (l.row ≠ r.row ∨ l.col ≠ r.col),
-  --f₁ ←
   e₁ ← to_expr ``(sudoku.box_conflict %%s %%l.e %%r.e rfl rfl),
   (if l.row ≠ r.row then do f ← mk_neq l.row r.row, to_expr ``(%%e₁ (or.inl (λ h, %%f (fin.veq_of_eq h))))
     else do f ← mk_neq l.col r.col, to_expr ``(%%e₁ (λ h, (or.inr %%f (fin.veq_of_eq h))))) >>= tactic.exact
@@ -265,8 +261,24 @@ do
   match t with
   | `(sudoku.f %%s (%%r, %%c) = %%v) :=
     do
-      [pr, pc, pv] ← list.mmap (eval_expr (fin 9)) [r, c, v],
+      [pr, pc, pv] ← return $ list.map eval_fin [r, c, v],
       list.mfirst (λ c : cell_data, sudoku_exact c pr pc pv) cd
+  | `(sudoku.snyder %%s %%r₁ %%c₁ %%r₂ %%c₂ %%v) :=
+    do
+      [pr₁, pc₁, pr₂, pc₂, pv] ← return $ list.map eval_fin [r₁, c₁, r₂, c₂, v],
+      (left >> list.mfirst (λ c : cell_data, sudoku_exact c pr₁ pc₁ pv) cd) <|>
+        (right >> list.mfirst (λ c : cell_data, sudoku_exact c pr₂ pc₂ pv) cd)
+  | `(sudoku.double %%s %%r %%c %%v₁ %%v₂) :=
+    do
+      [pr, pc, pv₁, pv₂] ← return $ list.map eval_fin [r, c, v₁, v₂],
+      (left >> list.mfirst (λ c : cell_data, sudoku_exact c pr pc pv₁) cd) <|>
+        (right >> list.mfirst (λ c : cell_data, sudoku_exact c pr pc pv₂) cd)
+  | `(sudoku.triple %%s %%r %%c %%v₁ %%v₂ %%v₃) :=
+    do
+      [pr, pc, pv₁, pv₂, pv₃] ← return $ list.map eval_fin [r, c, v₁, v₂, v₃],
+      (left >> list.mfirst (λ c : cell_data, sudoku_exact c pr pc pv₁) cd) <|>
+        (right >> left >> list.mfirst (λ c : cell_data, sudoku_exact c pr pc pv₂) cd) <|>
+        (right >> right >> list.mfirst (λ c : cell_data, sudoku_exact c pr pc pv₃) cd)
   | _ := tactic.split >> skip
   end
 
@@ -299,11 +311,13 @@ do
   let resolve_single (ns : list name) : tactic unit := (tactic.all_goals $ tactic.try (do
     es ← list.mmap get_local ns,
     tactic.sudoku.conflict_with s cd es <|>
-      tactic.exact (list.head es) <|>
+      (parse_cell_data s es.head >>=
+        (λ d, match d with | some d := sudoku_assumption s [d] | none := failed end))
+      /-tactic.exact (list.head es) <|>
       (tactic.left >> tactic.exact es.head) <|>
       (tactic.right >> tactic.exact es.head) <|>
       (tactic.right >> tactic.left >> tactic.exact es.head) <|>
-      (tactic.right >> tactic.right >> tactic.exact es.head) )) >> skip,
+      (tactic.right >> tactic.right >> tactic.exact es.head)-/ )) >> skip,
   resolve_single ns,
   let idxs := (list.iota lems.length).reverse,
   list.mmap' (λ i : ℕ, do
