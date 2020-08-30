@@ -1,8 +1,8 @@
 [package]
 name = "sudoku"
 version = "0.1"
-lean_version = "leanprover-community/lean:3.18.4"
+lean_version = "leanprover-community/lean:3.19.0"
 path = "src"
 
 [dependencies]
-mathlib = {git = "https://github.com/leanprover-community/mathlib", rev = "ea177c2ac97e144699a584b8acd368b50bc2f4be"}
+mathlib = {git = "https://github.com/leanprover-community/mathlib", rev = "ffce8f67cbdb3ed53e3db5d351b6844693eb8931"}

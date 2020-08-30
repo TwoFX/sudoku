@@ -160,22 +160,22 @@ by { unfold triple, tauto }
     cells, then we get an inner pencil mark for those two numbers in both cells. -/
 lemma double_left_of_snyder {s : sudoku} {i j k l m n : fin 9} (h₀ : snyder s i j k l m)
   (h₁ : snyder s i j k l n) (h₂ : m ≠ n) : double s i j m n :=
-by { unfold double, tidy }
+by { unfold double, cases h₀; cases h₁; try { tauto }, exact absurd (h₀.symm.trans h₁) h₂ }
 
 /-- The first (trivial) piece of sudoku theory: If there are two outer pencil marks relating two
     cells, then we get an inner pencil mark for those two numbers in both cells. -/
 lemma double_right_of_snyder {s : sudoku} {i j k l m n : fin 9} (h₀ : snyder s i j k l m)
   (h₁ : snyder s i j k l n) (h₂ : m ≠ n) : double s k l m n :=
-by { unfold double, tidy }
+by { unfold double, cases h₀; cases h₁; try { tauto }, exact absurd (h₀.symm.trans h₁) h₂ }
 
 lemma triple_of_double₁ {s : sudoku} {i j k l m : fin 9} : s.double i j k l → s.triple i j m k l :=
-by { unfold triple, tidy }
+by { unfold triple, tidy, tauto }
 
 lemma triple_of_double₂ {s : sudoku} {i j k l m : fin 9} : s.double i j k l → s.triple i j k m l :=
-by { unfold triple, tidy }
+by { unfold triple, tidy, tauto }
 
 lemma triple_of_double₃ {s : sudoku} {i j k l m : fin 9} : s.double i j k l → s.triple i j k l m :=
-by { unfold triple, tidy }
+by { unfold triple, tidy, tauto }
 
 /-- Two cells are in contention if they "see each other", i.e., cannot contain the same number. -/
 def contention (s : sudoku) (i j k l : fin 9) : Prop :=

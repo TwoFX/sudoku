@@ -64,7 +64,7 @@ meta def eval_fin : expr → fin 9
 | `(%%e * %%f) := let i := eval_fin e, j := eval_fin f in ⟨(i.1 * j.1) % 9, nat.mod_lt _ $ nat.zero_lt_succ _⟩
 | `(%%e + %%f) := let i := eval_fin e, j := eval_fin f in ⟨(i.1 + j.1) % 9, nat.mod_lt _ $ nat.zero_lt_succ _⟩
 | `(%%e / %%f) := let i := eval_fin e, j := eval_fin f in ⟨(i.1 / j.1) % 9, nat.mod_lt _ $ nat.zero_lt_succ _⟩
-| `(fin.val %%e) := eval_fin e
+| `(subtype.val %%e) := eval_fin e
 | _ := 0
 
 meta def parse_cell_data (s e : expr) : tactic (option cell_data) :=
