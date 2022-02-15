@@ -33,7 +33,7 @@ meta def format_marks (n m : ℕ) (bi : board_info) : list (html empty) :=
 match get_inner_marks n m bi.ip with
 | [] := let os := get_outer_marks n m bi.op in
   [h "div" [cn "dtc", cn "mw3", cn "flex", cn "flex-wrap"]
-    (list.map (λ k : ℕ, h "span" [cn "f5", cn "ph1"] (to_string k)) os)]
+    (list.map (λ k : ℕ, h "span" [cn "f5", cn "ph1"] [to_string k]) os)]
 | l := [h "span" [cn "dtc", cn "tc", cn "v-mid", cn "f5"] (list.map (λ l : ℕ, to_string l) l)]
 end
 
@@ -47,8 +47,8 @@ do
   let ns := get_numbers n m bi.cd,
   let s : list (html empty) := match ns with
   | [] := format_marks n m bi
-  | (a::[]) := [h "span" [cn "dtc", cn "v-mid", cn "tc", cn "f2"] (to_string a)]
-  | (a::as) := [h "span" [cn "dtc", cn "v-mid", cn "tc", cn "f2"] "💥"]
+  | (a::[]) := [h "span" [cn "dtc", cn "v-mid", cn "tc", cn "f2"] [to_string a]]
+  | (a::as) := [h "span" [cn "dtc", cn "v-mid", cn "tc", cn "f2"] ["💥"]]
   end,
   return $ h "td" attrs [
     h "div" [cn "dt", cn "ba", cn "b--light-silver", cn "w3", cn "mw3", cn "h3"] s

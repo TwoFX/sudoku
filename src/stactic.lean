@@ -12,7 +12,7 @@ universes u v w
 open tactic
 
 def list.mfirst' {m : Type → Type v} [monad m] {α : Type} [inhabited α] (f : α → m bool) : list α → m α
-| [] := return $ default _
+| [] := return default
 | (a::as) := do
   r ← f a,
   if r then return a else list.mfirst' as
