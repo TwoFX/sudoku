@@ -13,12 +13,12 @@ meta def list.iota' : ℕ → list ℕ :=
 list.map (λ n, n - 1) ∘ list.reverse ∘ list.iota
 
 meta def get_numbers (n m : ℕ) : list cell_data → list ℕ :=
-list.erase_dup ∘ list.filter_map
+list.dedup ∘ list.filter_map
   (λ cd : cell_data, if cd.row.1 = n ∧ cd.col.1 = m then some (
     if cd.val.1 = 0 then 9 else cd.val.1) else none)
 
 meta def get_outer_marks (n m : ℕ) : list outer_pencil_data → list ℕ :=
-list.erase_dup ∘ list.filter_map
+list.dedup ∘ list.filter_map
   (λ op : outer_pencil_data,
     if (op.row₀.1 = n ∧ op.col₀.1 = m) ∨ (op.row₁.1 = n ∧ op.col₁.1 = m) then some (
       if op.val.1 = 0 then 9 else op.val.1) else none)
