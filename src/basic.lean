@@ -242,4 +242,90 @@ lemma snyder₃_of_triple_row₃ {s : sudoku} {i j k l m n o : fin 9}
   (hjk : j ≠ k) (hkl : k ≠ l) (hjl : j ≠ l) : s.snyder₃ i j i k i l o :=
 snyder₃_of_triple₃ hj hk hl (row_contention hjk) (row_contention hjl) (row_contention hkl)
 
+lemma snyder₃_of_triple_col₁ {s : sudoku} {i j k l m n o : fin 9}
+  (hi : s.triple i j m n o) (hk : s.triple k j m n o) (hl : s.triple l j m n o)
+  (hik : i ≠ k) (hkl : k ≠ l) (hil : i ≠ l) : s.snyder₃ i j k j l j m :=
+snyder₃_of_triple₁ hi hk hl (col_contention hik) (col_contention hil) (col_contention hkl)
+
+lemma snyder₃_of_triple_col₂ {s : sudoku} {i j k l m n o : fin 9}
+  (hi : s.triple i j m n o) (hk : s.triple k j m n o) (hl : s.triple l j m n o)
+  (hik : i ≠ k) (hkl : k ≠ l) (hil : i ≠ l) : s.snyder₃ i j k j l j n :=
+snyder₃_of_triple₂ hi hk hl (col_contention hik) (col_contention hil) (col_contention hkl)
+
+lemma snyder₃_of_triple_col₃ {s : sudoku} {i j k l m n o : fin 9}
+  (hi : s.triple i j m n o) (hk : s.triple k j m n o) (hl : s.triple l j m n o)
+  (hik : i ≠ k) (hkl : k ≠ l) (hil : i ≠ l) : s.snyder₃ i j k j l j o :=
+snyder₃_of_triple₃ hi hk hl (col_contention hik) (col_contention hil) (col_contention hkl)
+
+/-- X wing -/
+lemma X_wing_row {s : sudoku} {i j k l m o : fin 9}
+  (hi : s.snyder i j i k o) (hl : s.snyder l j l k o)
+  (hil: i ≠ l) (hmi : m ≠ i) (hml: m ≠ l) : s.f (m, j) ≠ o :=
+begin
+  intro ifz, cases hi,
+  apply col_contention hmi, exact ifz, exact hi,
+  cases hl, apply col_contention hml, exact ifz, exact hl,
+  apply col_contention hil, exact hi, exact hl,
+end
+
+lemma X_wing_col {s : sudoku} {i j k l m o : fin 9}
+  (hj : s.snyder i j k j o) (hl : s.snyder i l k l o)
+  (hjl: j ≠ l) (hmj : m ≠ j) (hml: m ≠ l) : s.f (i, m) ≠ o :=
+begin
+  intro ifz, cases hj,
+  apply row_contention hmj, exact ifz, exact hj,
+  cases hl, apply row_contention hml, exact ifz, exact hl,
+  apply row_contention hjl, exact hj, exact hl,
+end
+
+/-- XY wing -/
+lemma XY_wing {s : sudoku} {i j k l m n o p x y z: fin 9}
+  (h₀ : s.double i j x y) (h₁ : s.double k l x z) (h₂ : s.double m n y z)
+  (h : s.contention i j k l) (h' : s.contention i j m n)
+  (h'' : s.contention o p k l) (h''' : s.contention o p m n) : s.f (o, p) ≠ z :=
+begin
+  intro ifz, cases h₀,
+  cases h₁, apply h x, exact h₀, exact h₁, apply h'' z, exact ifz, exact h₁,
+  cases h₂, apply h' y, exact h₀, exact h₂, apply h''' z, exact ifz, exact h₂,
+end
+
+/-- XYZ wing -/
+lemma XYZ_wing {s : sudoku} {i j k l m n o p x y z: fin 9}
+  (h₀ : s.triple i j x y z) (h₁ : s.double k l x z) (h₂ : s.double m n y z)
+  (h : s.contention i j k l) (h' : s.contention i j m n)
+  (h'' : s.contention o p k l) (h''' : s.contention o p m n)
+  (h'''' : s.contention o p i j) : s.f (o, p) ≠ z :=
+begin
+  intro ifz, cases h₀,
+  cases h₁, apply h x, exact h₀, exact h₁, apply h'' z, exact ifz, exact h₁,
+  cases h₂, apply h' y, cases h₀, exact h₀,
+  exfalso, apply h'''' z, exact ifz, exact h₀, exact h₂,
+  cases h₀, apply h''' z, exact ifz, exact h₂, apply h''' z, exact ifz, exact h₂,
+end
+
+/-- sws_chains means strong-weak-strong chains -/
+lemma sws_chains {s : sudoku} {i j k l m n o p x: fin 9}
+  (h₀ : s.snyder i j k l x) (h₁ : s.contention k l m n)
+  (h₂ : s.snyder m n o p x): s.snyder i j o p x :=
+begin
+  cases h₀, cases h₂, left, exact h₀, right, exact h₂,
+  right, cases h₂, exfalso, apply h₁ x, exact h₀, exact h₂, exact h₂,
+end
+
+/-- wsw_chains means weak-strong-weak chains -/
+lemma wsw_chains {s : sudoku} {i j k l m n x: fin 9}
+  (h₀ : s.contention i j k l) (h₁ : s.snyder k l m n x)
+  (h₂ : s.contention m n i j): s.f(i, j) ≠ x :=
+begin
+  intro ifx, cases h₁, apply h₀ x, exact ifx, exact h₁,
+  apply h₂ x, exact h₁, exact ifx,
+end
+
+/-- Turbot fish -/
+lemma Turbot_fish {s : sudoku} {i j k l m n o p q r x: fin 9}
+  (h₀ : s.contention i j k l) (h₁ : s.snyder k l m n x)
+  (h₂ : s.contention m n o p) (h₃ : s.snyder o p q r x)
+  (h₄ : s.contention q r i j): s.f (i, j) ≠ x :=
+  by {apply wsw_chains h₀, exact sws_chains h₁ h₂ h₃, exact h₄,}
+
 end sudoku
